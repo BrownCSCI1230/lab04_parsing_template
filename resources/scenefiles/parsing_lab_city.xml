@@ -1,0 +1,150 @@
+<scenefile>
+	<globaldata>
+		<diffusecoeff v="0.7"/>
+		<specularcoeff v="0.5"/>
+		<ambientcoeff v="0.5"/>
+	</globaldata>
+
+	<cameradata>
+		<pos x="12" y="3" z="3"/>
+		<focus x="4" y="0" z="3"/>
+		<up x="0" y="1" z="0"/>
+		<heightangle v="60"/>
+	</cameradata>
+
+	<lightdata>
+		<id v="0"/>
+		<position x="8.5" y="5" z="8.5"/>
+		<color r="1" g="1" b="1"/>
+		<function v1=".1" v2="1" v3="0"/>
+	</lightdata>
+
+	<lightdata>
+		<id v="1"/>
+		<position x="3" y="6" z="3"/>
+		<color r="1" g="1" b="1"/>
+		<function v1="0.1" v2="1" v3="0"/>
+	</lightdata>
+
+	<lightdata>
+		<id v="2"/>
+		<position x="-3" y="7" z="-3"/>
+		<color r="1" g="1" b="1"/>
+		<function v1=".1" v2="1" v3="0"/>
+	</lightdata>
+
+	<lightdata>
+		<id v="3"/>
+		<position x="-3" y="5" z="3"/>
+		<color r="1" g="1" b="1"/>
+		<function v1=".1" v2="1" v3="0"/>
+	</lightdata>
+
+	<lightdata>
+		<id v="4"/>
+		<position x="8" y="6" z="1"/>
+		<color r="1" g="1" b="1"/>
+		<function v1=".1" v2="1" v3="0"/>
+	</lightdata>
+
+	<lightdata>
+		<id v="5"/>
+		<position x="6" y="6" z="6"/>
+		<color r="1" g="1" b="1"/>
+		<function v1=".1" v2="1" v3="0"/>
+	</lightdata>
+
+	<object type="tree" name="door">
+		<transblock>
+			<scale x=".05" y=".7" z=".5"/>
+			<object type="primitive" name="cube" >
+				<diffuse r="1" g=".95" b=".95"/>
+			</object>
+		</transblock>
+										
+		<transblock>
+			<translate x="0" y=".5" z="0"/>
+			<rotate x="0" y="0" z="1" angle="10"/>
+			<scale x=".05" y=".5" z=".7"/>
+			<object type="primitive" name="cube" >
+				<diffuse r="1" g=".95" b=".95"/>
+			</object>
+		</transblock>
+	</object>
+
+	<object type="tree" name="road">
+		<transblock>
+			<scale x="15" y=".1" z="1"/>
+            <object type="primitive" name="cube" >
+                <diffuse r=".18" g=".18" b=".2"/>
+            </object>
+		</transblock>
+	</object>
+
+	<object type="tree" name="root">
+		<transblock>
+			<object type="tree">
+
+                <transblock>
+                    <translate x="6" y="-.5" z="5"/>
+                    <object type="tree">
+                        
+                        <transblock>
+                            <translate x="0" y="1.25" z="1"/>
+                            <object type="tree" name="building" >
+
+                                <transblock>
+									<scale x="1" y="2.5" z="1"/>
+									<object type="primitive" name="cube" >
+										<diffuse r="1" g=".8" b=".4"/>
+									</object>
+								</transblock>
+
+								<transblock>
+									<translate x=".5" y="-.9" z="0"/>
+									<object type="master" name="door"/>
+								</transblock>
+
+                            </object>
+                        </transblock>
+                        
+                        <transblock>
+                            <translate x="-3" y="0" z="0"/>
+							<object type="master" name="road"/>
+                        </transblock>
+                        
+                    </object>
+                </transblock>
+                
+                <transblock>
+					<rotate x="0" y="1" z="0" angle="70"/>
+					<object type="tree" name="Willow-Street">
+						<transblock>
+							<translate x="0" y="0" z="-1"/>
+							<rotate x="0" y="1" z="0" angle="-90"/>
+							<object type="tree" name="house" >
+								<transblock>
+									<object type="primitive" name="cube" >
+                        				<diffuse r="1" g=".2" b=".1"/>
+                    				</object>
+								</transblock>
+
+								<transblock>
+									<translate x=".5" y="-0.2" z="0"/>
+									<object type="master" name="door"/>
+								</transblock>
+							</object>
+						</transblock>
+
+                        <transblock>
+                            <translate x="0" y="-.5" z="0"/>
+							<object type="master" name="road"/>
+                        </transblock>
+					</object>
+                </transblock>
+                
+			</object>
+		</transblock>
+	</object>
+
+</scenefile>
