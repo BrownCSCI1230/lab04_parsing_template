@@ -586,7 +586,7 @@ void GLWidget::paintGL() {
     f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     m_program->bind();
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); bad bad line
 
     m_program->setUniformValue(m_program->uniformLocation("lightPos"), m_lightPos);
     m_program->setUniformValue(m_program->uniformLocation("p"), glmMatToQMat(m_proj));
