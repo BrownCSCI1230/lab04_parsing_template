@@ -22,7 +22,7 @@ protected:
     void resizeGL(int w, int h) override;
 
 private:
-    QOpenGLShaderProgram *m_program = nullptr;
+    QOpenGLShaderProgram m_program;
 
     QOpenGLVertexArrayObject m_vaoCone;
     QOpenGLVertexArrayObject m_vaoCube;

@@ -491,11 +491,6 @@ static const char *fragmentShaderSourceCore =
     "}\n";
 
 GLWidget::~GLWidget() {
-    if (m_program) {
-        delete m_program;
-        m_program = nullptr;
-    }
-
     m_vaoCone.destroy();
     m_vboCone.destroy();
     m_vaoCylinder.destroy();
@@ -516,11 +511,10 @@ void GLWidget::initializeGL() {
     f->glCullFace(GL_BACK);
     f->glFrontFace(GL_CCW);
 
-    m_program = new QOpenGLShaderProgram;
-    m_program->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSourceCore);
-    m_program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSourceCore);
-    m_program->link();
-    m_program->bind();
+    m_program.addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSourceCore);
+    m_program.addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSourceCore);
+    m_program.link();
+    m_program.bind();
 
     // Camera
     m_view = glm::lookAt(glm::vec3(8.f, 8.f, 8.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
@@ -537,7 +531,7 @@ void GLWidget::initializeGL() {
     f->glEnableVertexAttribArray(1);
     f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), nullptr);
     f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), reinterpret_cast<void *>(3 * sizeof(GLfloat)));
-    m_vboCone.release();
+    m_vboCone.release(QOpenGLBuffer::VertexBuffer);
     m_vaoCone.release();
 
     // Cube
@@ -550,7 +544,7 @@ void GLWidget::initializeGL() {
     f->glEnableVertexAttribArray(1);
     f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), nullptr);
     f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), reinterpret_cast<void *>(3 * sizeof(GLfloat)));
-    m_vboCube.release();
+    m_vboCube.release(QOpenGLBuffer::VertexBuffer);
     m_vaoCube.release();
 
     // Cylinder
@@ -563,7 +557,7 @@ void GLWidget::initializeGL() {
     f->glEnableVertexAttribArray(1);
     f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), nullptr);
     f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), reinterpret_cast<void *>(3 * sizeof(GLfloat)));
-    m_vboCylinder.release();
+    m_vboCylinder.release(QOpenGLBuffer::VertexBuffer);
     m_vaoCylinder.release();
 
     // Sphere
@@ -576,7 +570,7 @@ void GLWidget::initializeGL() {
     f->glEnableVertexAttribArray(1);
     f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), nullptr);
     f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), reinterpret_cast<void *>(3 * sizeof(GLfloat)));
-    m_vboSphere.release();
+    m_vboSphere.release(QOpenGLBuffer::VertexBuffer);
     m_vaoSphere.release();
 }
 
@@ -584,17 +578,15 @@ void GLWidget::paintGL() {
     QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();
 
     f->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    m_program->bind();
+    m_program.bind();
 
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); bad bad line
-
-    m_program->setUniformValue(m_program->uniformLocation("lightPos"), m_lightPos);
-    m_program->setUniformValue(m_program->uniformLocation("p"), glmMatToQMat(m_proj));
-    m_program->setUniformValue(m_program->uniformLocation("v"), glmMatToQMat(m_view));
+    m_program.setUniformValue(m_program.uniformLocation("lightPos"), m_lightPos);
+    m_program.setUniformValue(m_program.uniformLocation("p"), glmMatToQMat(m_proj));
+    m_program.setUniformValue(m_program.uniformLocation("v"), glmMatToQMat(m_view));
 
     for (auto & shape : m_renderData.shapes) {
         auto &material = shape.primitive.material;
-        m_program->setUniformValue(m_program->uniformLocation("m"), glmMatToQMat(shape.ctm));
+        m_program.setUniformValue(m_program.uniformLocation("m"), glmMatToQMat(shape.ctm));
 
         switch (shape.primitive.type) {
         case PrimitiveType::PRIMITIVE_CONE:
@@ -630,7 +622,7 @@ void GLWidget::paintGL() {
         }
     }
 
-    m_program->release();
+    m_program.release();
 }
 
 void GLWidget::resizeGL(int w, int h) {
