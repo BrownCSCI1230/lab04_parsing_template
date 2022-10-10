@@ -592,28 +592,28 @@ void GLWidget::paintGL() {
         case PrimitiveType::PRIMITIVE_CONE:
         {
             m_vaoCone.bind();
-            f->glDrawArrays(GL_TRIANGLES, 0, ConeVertexNum);
+            f->glDrawArrays(GL_TRIANGLES, 0, ConeVertexNum / 6);
             m_vaoCone.release();
             break;
         }
         case PrimitiveType::PRIMITIVE_CYLINDER:
         {
             m_vaoCylinder.bind();
-            f->glDrawArrays(GL_TRIANGLES, 0, CylinderVertexNum);
+            f->glDrawArrays(GL_TRIANGLES, 0, CylinderVertexNum / 6);
             m_vaoCylinder.release();
             break;
         }
         case PrimitiveType::PRIMITIVE_CUBE:
         {
             m_vaoCube.bind();
-            f->glDrawArrays(GL_TRIANGLES, 0, CubeVertexNum);
+            f->glDrawArrays(GL_TRIANGLES, 0, CubeVertexNum / 6);
             m_vaoCube.release();
             break;
         }
         case PrimitiveType::PRIMITIVE_SPHERE:
         {
             m_vaoSphere.bind();
-            f->glDrawArrays(GL_TRIANGLES, 0, SphereVertexNum);
+            f->glDrawArrays(GL_TRIANGLES, 0, SphereVertexNum / 6);
             m_vaoSphere.release();
             break;
         }
