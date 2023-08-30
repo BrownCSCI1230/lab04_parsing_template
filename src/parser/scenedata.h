@@ -10,7 +10,6 @@ enum class LightType {
     LIGHT_POINT,
     LIGHT_DIRECTIONAL,
     LIGHT_SPOT,
-    LIGHT_AREA // No longer supported
 };
 
 // Enum of the types of primitives that might be in the scene
@@ -18,7 +17,6 @@ enum class PrimitiveType {
     PRIMITIVE_CUBE,
     PRIMITIVE_CONE,
     PRIMITIVE_CYLINDER,
-    PRIMITIVE_TORUS,
     PRIMITIVE_SPHERE,
     PRIMITIVE_MESH
 };

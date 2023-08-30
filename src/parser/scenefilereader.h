@@ -5,7 +5,8 @@
 #include <vector>
 #include <map>
 
-#include <QDomDocument>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 // This class parses the scene graph specified by the CS123 Xml file format.
 class ScenefileReader {
@@ -17,7 +18,7 @@ public:
     ~ScenefileReader();
 
     // Parse the XML scene file. Returns false if scene is invalid.
-    bool readXML();
+    bool readJSON();
 
     SceneGlobalData getGlobalData() const;
 
@@ -30,12 +31,12 @@ public:
 private:
     // The filename should be contained within this parser implementation.
     // If you want to parse a new file, instantiate a different parser.
-    bool parseGlobalData(const QDomElement &globaldata);
-    bool parseCameraData(const QDomElement &cameradata);
-    bool parseLightData(const QDomElement &lightdata);
-    bool parseObjectData(const QDomElement &object);
-    bool parseTransBlock(const QDomElement &transblock, SceneNode* node);
-    bool parsePrimitive(const QDomElement &prim, SceneNode* node);
+    bool parseGlobalData(const QJsonObject &globaldata);
+    bool parseCameraData(const QJsonObject &cameradata);
+    bool parseLightData(const QJsonObject &lightdata);
+    bool parseGroupData(const QJsonObject &object);
+    bool parseTransBlock(const QJsonObject &transblock, SceneNode* node);
+    bool parsePrimitive(const QJsonObject &prim, SceneNode* node);
 
     std::string file_name;
     mutable std::map<std::string, SceneNode*> m_objects;

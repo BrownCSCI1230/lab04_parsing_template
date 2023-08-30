@@ -9,6 +9,7 @@
 #include <filesystem>
 
 #include <QFile>
+#include <QJsonArray>
 
 #define ERROR_AT(e) "error at line " << e.lineNumber() << " col " << e.columnNumber() << ": "
 #define PARSE_ERROR(e) std::cout << ERROR_AT(e) << "could not parse <" << e.tagName().toStdString() \
@@ -81,7 +82,7 @@ SceneNode* ScenefileReader::getRootNode() const {
 }
 
 // This is where it all goes down...
-bool ScenefileReader::readXML() {
+bool ScenefileReader::readJSON() {
    // Read the file
    QFile file(file_name.c_str());
    if (!file.open(QFile::ReadOnly)) {
@@ -89,23 +90,46 @@ bool ScenefileReader::readXML() {
        return false;
    }
 
-   // Load the XML document
-   QDomDocument doc;
+   // Load the JSON document
    QString errorMessage;
-   int errorLine, errorColumn;
-   if (!doc.setContent(&file, &errorMessage, &errorLine, &errorColumn)) {
-       std::cout << "parse error at line " << errorLine << " col " << errorColumn << ": "
-            << errorMessage.toStdString() << std::endl;
-       return false;
+   QByteArray fileContents = file.readAll();
+   QJsonParseError jsonError;
+   QJsonDocument doc = QJsonDocument::fromJson(fileContents, &jsonError);
+   if (doc.isNull()) {
+      std::cout << "could not parse " << file_name << std::endl;
+         std::cout << "parse error at line " << jsonError.offset << ": "
+                  << jsonError.errorString().toStdString() << std::endl;
+         return false;
    }
    file.close();
 
-   // Get the root element
-   QDomElement scenefile = doc.documentElement();
-   if (scenefile.tagName() != "scenefile") {
-       std::cout << "missing <scenefile>" << std::endl;
-       return false;
+   if (!doc.isObject()) {
+      std::cout << "document is not an object" << std::endl;
+      return false;
    }
+
+   // Get the root element
+   QJsonObject scenefile = doc.object();
+
+   if (!scenefile.contains("globalData")) {
+      std::cout << "missing required field \"globalData\" on root object" << std::endl;
+      return false;
+   }
+   if (!scenefile.contains("cameraData")) {
+      std::cout << "missing required field \"cameraData\" on root object" << std::endl;
+      return false;
+   }
+
+   QStringList requiredFields = {"globalData", "cameraData"};
+   QStringList optionalFields = {"name", "groups", "templateGroups"};
+   // If other fields are present, raise an error
+   QStringList allFields = requiredFields + optionalFields;
+   for (auto field : scenefile.keys()) {
+      if (!allFields.contains(field)) {
+         std::cout << "unknown field \"" << field.toStdString() << "\" on root object" << std::endl;
+         return false;
+      }
+   } 
 
    // Default camera
    m_cameraData.pos = glm::vec4(5.f, 5.f, 5.f, 1.f);
@@ -118,27 +142,27 @@ bool ScenefileReader::readXML() {
    m_globalData.kd = 0.5f;
    m_globalData.ks = 0.5f;
 
-   // Iterate over child elements
-   QDomNode childNode = scenefile.firstChild();
-   while (!childNode.isNull()) {
-       QDomElement e = childNode.toElement();
-       if (e.tagName() == "globaldata") {
-           if (!parseGlobalData(e))
-               return false;
-       } else if (e.tagName() == "lightdata") {
-           if (!parseLightData(e))
-               return false;
-       } else if (e.tagName() == "cameradata") {
-           if (!parseCameraData(e))
-               return false;
-       } else if (e.tagName() == "object") {
-           if (!parseObjectData(e))
-               return false;
-       } else if (!e.isNull()) {
-           UNSUPPORTED_ELEMENT(e);
-           return false;
-       }
-       childNode = childNode.nextSibling();
+   // Parse the global data
+   if (!parseGlobalData(scenefile["globalData"].toObject())) {
+      std::cout << "could not parse \"globalData\"" << std::endl;
+      return false;
+   }
+
+   // Parse the camera data
+   if (!parseCameraData(scenefile["cameraData"].toObject())) {
+      std::cout << "could not parse \"cameraData\"" << std::endl;
+      return false;
+   }
+
+   // Parse the groups
+   if (scenefile.contains("groups")) {
+      QJsonObject groups = scenefile["groups"].toObject();
+      for (auto group : groups.keys()) {
+         if (!parseGroupData(groups[group].toObject())) {
+            std::cout << "could not parse group \"" << group.toStdString() << "\"" << std::endl;
+            return false;
+         }
+      }
    }
 
    std::cout << "Finished reading " << file_name << std::endl;
@@ -287,42 +311,57 @@ bool parseMap(const QDomElement &e, SceneFileMap &map, const std::filesystem::pa
 }
 
 /**
-* Parse a <globaldata> tag and fill in m_globalData.
+* Parse a globalData field and fill in m_globalData.
 */
-bool ScenefileReader::parseGlobalData(const QDomElement &globaldata) {
-   // Iterate over child elements
-   QDomNode childNode = globaldata.firstChild();
-   while (!childNode.isNull()) {
-       QDomElement e = childNode.toElement();
-       if (e.tagName() == "ambientcoeff") {
-           if (!parseSingle(e, m_globalData.ka, "v")) {
-               PARSE_ERROR(e);
-               return false;
-           }
-       } else if (e.tagName() == "diffusecoeff") {
-           if (!parseSingle(e, m_globalData.kd, "v")) {
-               PARSE_ERROR(e);
-               return false;
-           }
-       } else if (e.tagName() == "specularcoeff") {
-           if (!parseSingle(e, m_globalData.ks, "v")) {
-               PARSE_ERROR(e);
-               return false;
-           }
-       } else if (e.tagName() == "transparentcoeff") {
-           if (!parseSingle(e, m_globalData.kt, "v")) {
-               PARSE_ERROR(e);
-               return false;
-           }
-       }
-       childNode = childNode.nextSibling();
+bool ScenefileReader::parseGlobalData(const QJsonObject &globalData) {
+   QStringList requiredFields = {"ambientCoeff", "diffuseCoeff", "specularCoeff"};
+   QStringList optionalFields = {"transparentCoeff"};
+   QStringList allFields = requiredFields + optionalFields;
+   for (auto field : globalData.keys()) {
+      if (!allFields.contains(field)) {
+         std::cout << "unknown field \"" << field.toStdString() << "\" on globalData object" << std::endl;
+         return false;
+      }
+   }
+   for (auto field : requiredFields) {
+      if (!globalData.contains(field)) {
+         std::cout << "missing required field \"" << field.toStdString() << "\" on globalData object" << std::endl;
+         return false;
+      }
+   }
+   // Parse the global data
+   if (globalData["ambientCoeff"].isDouble()) {
+      m_globalData.ka = globalData["ambientCoeff"].toDouble();
+   } else {
+      std::cout << "globalData ambientCoeff must be a floating-point value" << std::endl;
+      return false;
+   }
+   if (globalData["diffuseCoeff"].isDouble()) {
+      m_globalData.kd = globalData["diffuseCoeff"].toDouble();
+   } else {
+      std::cout << "globalData diffuseCoeff must be a floating-point value" << std::endl;
+      return false;
+   }
+   if (globalData["specularCoeff"].isDouble()) {
+      m_globalData.ks = globalData["specularCoeff"].toDouble();
+   } else {
+      std::cout << "globalData specularCoeff must be a floating-point value" << std::endl;
+      return false;
+   }
+   if (globalData.contains("transparentCoeff")) {
+      if (globalData["transparentCoeff"].isDouble()) {
+         m_globalData.kt = globalData["transparentCoeff"].toDouble();
+      } else {
+         std::cout << "globalData transparentCoeff must be a floating-point value" << std::endl;
+         return false;
+      }
    }
 
    return true;
 }
 
 /**
-* Parse a <lightdata> tag and add a new CS123SceneLightData to m_lights.
+* Parse a Light and add a new CS123SceneLightData to m_lights.
 */
 bool ScenefileReader::parseLightData(const QDomElement &lightdata) {
    // Create a default light
@@ -439,86 +478,157 @@ bool ScenefileReader::parseLightData(const QDomElement &lightdata) {
 }
 
 /**
-* Parse a <cameradata> tag and fill in m_cameraData.
+* Parse cameraData and fill in m_cameraData.
 */
-bool ScenefileReader::parseCameraData(const QDomElement &cameradata) {
-   bool focusFound = false;
-   bool lookFound = false;
+bool ScenefileReader::parseCameraData(const QJsonObject &cameradata) {
+   QStringList requiredFields = {"position", "up", "heightAngle"};
+   QStringList optionalFields = {"aperture", "focalLength", "look", "focus"};
+   QStringList allFields = requiredFields + optionalFields;
+   for (auto field : cameradata.keys()) {
+      if (!allFields.contains(field)) {
+         std::cout << "unknown field \"" << field.toStdString() << "\" on cameraData object" << std::endl;
+         return false;
+      }
+   }
+    for (auto field : requiredFields) {
+        if (!cameradata.contains(field)) {
+            std::cout << "missing required field \"" << field.toStdString() << "\" on cameraData object" << std::endl;
+            return false;
+        }
+    }
 
-   // Iterate over child elements
-   QDomNode childNode = cameradata.firstChild();
-   while (!childNode.isNull()) {
-       QDomElement e = childNode.toElement();
-       if (e.tagName() == "pos") {
-           if (!parseTriple(e, m_cameraData.pos.x, m_cameraData.pos.y, m_cameraData.pos.z, "x", "y", "z")) {
-               PARSE_ERROR(e);
-               return false;
-           }
-           m_cameraData.pos.w = 1;
-       } else if (e.tagName() == "look" || e.tagName() == "focus") {
-           if (!parseTriple(e, m_cameraData.look.x, m_cameraData.look.y, m_cameraData.look.z, "x", "y", "z")) {
-               PARSE_ERROR(e);
-               return false;
-           }
-
-           if (e.tagName() == "focus") {
-               // Store the focus point in the look vector (we will later subtract
-               // the camera position from this to get the actual look vector)
-               m_cameraData.look.w = 1;
-               focusFound = true;
-           } else {
-               // Just store the look vector
-               m_cameraData.look.w = 0;
-               lookFound = true;
-           }
-       } else if (e.tagName() == "up") {
-           if (!parseTriple(e, m_cameraData.up.x, m_cameraData.up.y, m_cameraData.up.z, "x", "y", "z")) {
-               PARSE_ERROR(e);
-               return false;
-           }
-           m_cameraData.up.w = 0;
-       } else if (e.tagName() == "heightangle") {
-           float heightAngle = 0.f;
-           if (!parseSingle(e, heightAngle, "v")) {
-               PARSE_ERROR(e);
-               return false;
-           }
-           m_cameraData.heightAngle = heightAngle * M_PI / 180.f;
-       } else if (e.tagName() == "aperture") {
-           if (!parseSingle(e, m_cameraData.aperture, "v")) {
-               PARSE_ERROR(e);
-               return false;
-           }
-       } else if (e.tagName() == "focallength") {
-           if (!parseSingle(e, m_cameraData.focalLength, "v")) {
-               PARSE_ERROR(e);
-               return false;
-           }
-       } else if (!e.isNull()) {
-           UNSUPPORTED_ELEMENT(e);
-           return false;
-       }
-       childNode = childNode.nextSibling();
+   // Must have either look or focus, but not both
+   if (cameradata.contains("look") && cameradata.contains("focus")) {
+      std::cout << "cameraData cannot contain both \"look\" and \"focus\"" << std::endl;
+      return false;
    }
 
-   if (focusFound && lookFound) {
-       std::cout << ERROR_AT(cameradata) << "camera can not have both look and focus" << std::endl;
-       return false;
+   // Parse the camera data
+   if (cameradata["position"].isArray()) {
+      QJsonArray position = cameradata["position"].toArray();
+      if (position.size() != 3) {
+         std::cout << "cameraData position must have 3 elements" << std::endl;
+         return false;
+      }
+      if (!position[0].isDouble() || !position[1].isDouble() || !position[2].isDouble()) {
+         std::cout << "cameraData position must be a floating-point value" << std::endl;
+         return false;
+      }
+      m_cameraData.pos.x = position[0].toDouble();
+      m_cameraData.pos.y = position[1].toDouble();
+      m_cameraData.pos.z = position[2].toDouble();
+   } else {
+      std::cout << "cameraData position must be an array" << std::endl;
+      return false;
    }
 
-   if (focusFound) {
-       // Convert the focus point (stored in the look vector) into a
-       // look vector from the camera position to that focus point.
-       m_cameraData.look -= m_cameraData.pos;
+   if (cameradata["up"].isArray()) {
+      QJsonArray up = cameradata["up"].toArray();
+      if (up.size() != 3) {
+         std::cout << "cameraData up must have 3 elements" << std::endl;
+         return false;
+      }
+      if (!up[0].isDouble() || !up[1].isDouble() || !up[2].isDouble()) {
+         std::cout << "cameraData up must be a floating-point value" << std::endl;
+         return false;
+      }
+      m_cameraData.up.x = up[0].toDouble();
+      m_cameraData.up.y = up[1].toDouble();
+      m_cameraData.up.z = up[2].toDouble();
+   } else {
+      std::cout << "cameraData up must be an array" << std::endl;
+      return false;
    }
+
+    if (cameradata["heightAngle"].isDouble()) {
+        m_cameraData.heightAngle = cameradata["heightAngle"].toDouble() * M_PI / 180.f;
+    } else {
+        std::cout << "cameraData heightAngle must be a floating-point value" << std::endl;
+        return false;
+    }
+
+    if (cameradata.contains("aperture")) {
+        if (cameradata["aperture"].isDouble()) {
+            m_cameraData.aperture = cameradata["aperture"].toDouble();
+        } else {
+            std::cout << "cameraData aperture must be a floating-point value" << std::endl;
+            return false;
+        }
+    }
+
+    if (cameradata.contains("focalLength")) {
+        if (cameradata["focalLength"].isDouble()) {
+            m_cameraData.focalLength = cameradata["focalLength"].toDouble();
+        } else {
+            std::cout << "cameraData focalLength must be a floating-point value" << std::endl;
+            return false;
+        }
+    }
+
+    // Parse the look or focus
+    // if the focus is specified, we will convert it to a look vector later
+    if (cameradata.contains("look")) {
+        if (cameradata["look"].isArray()) {
+            QJsonArray look = cameradata["look"].toArray();
+            if (look.size() != 3) {
+                std::cout << "cameraData look must have 3 elements" << std::endl;
+                return false;
+            }
+            if (!look[0].isDouble() || !look[1].isDouble() || !look[2].isDouble()) {
+                std::cout << "cameraData look must be a floating-point value" << std::endl;
+                return false;
+            }
+            m_cameraData.look.x = look[0].toDouble();
+            m_cameraData.look.y = look[1].toDouble();
+            m_cameraData.look.z = look[2].toDouble();
+        } else {
+            std::cout << "cameraData look must be an array" << std::endl;
+            return false;
+        }
+    } else if (cameradata.contains("focus")) {
+        if (cameradata["focus"].isArray()) {
+            QJsonArray focus = cameradata["focus"].toArray();
+            if (focus.size() != 3) {
+                std::cout << "cameraData focus must have 3 elements" << std::endl;
+                return false;
+            }
+            if (!focus[0].isDouble() || !focus[1].isDouble() || !focus[2].isDouble()) {
+                std::cout << "cameraData focus must be a floating-point value" << std::endl;
+                return false;
+            }
+            m_cameraData.look.x = focus[0].toDouble();
+            m_cameraData.look.y = focus[1].toDouble();
+            m_cameraData.look.z = focus[2].toDouble();
+        } else {
+            std::cout << "cameraData focus must be an array" << std::endl;
+            return false;
+        }
+    }
+    // Convert the focus point (stored in the look vector) into a
+    // look vector from the camera position to that focus point.
+    if (cameradata.contains("focus")) {
+        m_cameraData.look -= m_cameraData.pos;
+    }
 
    return true;
 }
 
 /**
-* Parse an <object> tag and create a new CS123SceneNode in m_nodes.
+* Parse a group object and create a new CS123SceneNode in m_nodes.
 */
-bool ScenefileReader::parseObjectData(const QDomElement &object) {
+bool ScenefileReader::parseGroupData(const QJsonObject &object) {
+   QStringList optionalFields = {"name", "translate", "rotate", "scale", "matrix", "lights", "primitives", "children"};
+   QStringList allFields = optionalFields;
+   for (auto field : object.keys()) {
+      if (!allFields.contains(field)) {
+         std::cout << "unknown field \"" << field.toStdString() << "\" on group object" << std::endl;
+         return false;
+      }
+   }
+   
+   SceneNode *node = new SceneNode;
+   m_nodes.push_back(node);
+
    if (!object.hasAttribute("name")) {
        PARSE_ERROR(object);
        return false;
