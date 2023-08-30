@@ -34,14 +34,25 @@ private:
     bool parseGlobalData(const QJsonObject &globaldata);
     bool parseCameraData(const QJsonObject &cameradata);
     bool parseLightData(const QJsonObject &lightdata);
-    bool parseGroupData(const QJsonObject &object);
+
+    bool parseGroups(const QJsonValue &groups, SceneNode* parent);
+    bool parseGroupData(const QJsonObject &object, SceneNode* node);
+
+
+    bool parseTemplateGroups(const QJsonValue &templateGroups);
+    bool parseTemplateGroupData(const QJsonObject &templateGroup);
+
     bool parseTransBlock(const QJsonObject &transblock, SceneNode* node);
     bool parsePrimitive(const QJsonObject &prim, SceneNode* node);
 
     std::string file_name;
-    mutable std::map<std::string, SceneNode*> m_objects;
+
+    mutable std::map<std::string, SceneNode*> m_templates;
+
     SceneGlobalData m_globalData;
     SceneCameraData m_cameraData;
     std::vector<SceneLightData*> m_lights;
+
+    SceneNode* root;
     std::vector<SceneNode*> m_nodes;
 };

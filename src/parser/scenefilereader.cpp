@@ -25,7 +25,7 @@ ScenefileReader::ScenefileReader(const std::string& name)
 
    memset(&m_cameraData, 0, sizeof(SceneCameraData));
    memset(&m_globalData, 0, sizeof(SceneGlobalData));
-   m_objects.clear();
+   m_templates.clear();
    m_lights.clear();
    m_nodes.clear();
 }
@@ -53,7 +53,7 @@ ScenefileReader::~ScenefileReader()
 
    m_nodes.clear();
    m_lights.clear();
-   m_objects.clear();
+   m_templates.clear();
 }
 
 SceneGlobalData ScenefileReader::getGlobalData() const {
@@ -75,10 +75,10 @@ std::vector<SceneLightData> ScenefileReader::getLights() const {
 }
 
 SceneNode* ScenefileReader::getRootNode() const {
-   std::map<std::string, SceneNode*>::iterator node = m_objects.find("root");
-   if (node == m_objects.end())
+   std::map<std::string, SceneNode*>::iterator node = m_templates.find("root");
+   if (node == m_templates.end())
        return nullptr;
-   return m_objects["root"];
+   return m_templates["root"];
 }
 
 // This is where it all goes down...
@@ -131,17 +131,6 @@ bool ScenefileReader::readJSON() {
       }
    } 
 
-   // Default camera
-   m_cameraData.pos = glm::vec4(5.f, 5.f, 5.f, 1.f);
-   m_cameraData.up = glm::vec4(0.f, 1.f, 0.f, 0.f);
-   m_cameraData.look = glm::vec4(-1.f, -1.f, -1.f, 0.f);
-   m_cameraData.heightAngle = 45 * M_PI / 180.f;
-
-   // Default global data
-   m_globalData.ka = 0.5f;
-   m_globalData.kd = 0.5f;
-   m_globalData.ks = 0.5f;
-
    // Parse the global data
    if (!parseGlobalData(scenefile["globalData"].toObject())) {
       std::cout << "could not parse \"globalData\"" << std::endl;
@@ -152,6 +141,11 @@ bool ScenefileReader::readJSON() {
    if (!parseCameraData(scenefile["cameraData"].toObject())) {
       std::cout << "could not parse \"cameraData\"" << std::endl;
       return false;
+   }
+
+   // Parse the template groups
+   if (scenefile.contains("templateGroups")) {
+       parseTemplateGroups(scenefile["templateGroups"]);
    }
 
    // Parse the groups
@@ -484,13 +478,13 @@ bool ScenefileReader::parseCameraData(const QJsonObject &cameradata) {
    QStringList requiredFields = {"position", "up", "heightAngle"};
    QStringList optionalFields = {"aperture", "focalLength", "look", "focus"};
    QStringList allFields = requiredFields + optionalFields;
-   for (auto field : cameradata.keys()) {
+   for (auto& field : cameradata.keys()) {
       if (!allFields.contains(field)) {
          std::cout << "unknown field \"" << field.toStdString() << "\" on cameraData object" << std::endl;
          return false;
       }
    }
-    for (auto field : requiredFields) {
+    for (auto& field : requiredFields) {
         if (!cameradata.contains(field)) {
             std::cout << "missing required field \"" << field.toStdString() << "\" on cameraData object" << std::endl;
             return false;
@@ -604,6 +598,7 @@ bool ScenefileReader::parseCameraData(const QJsonObject &cameradata) {
             return false;
         }
     }
+
     // Convert the focus point (stored in the look vector) into a
     // look vector from the camera position to that focus point.
     if (cameradata.contains("focus")) {
@@ -613,36 +608,197 @@ bool ScenefileReader::parseCameraData(const QJsonObject &cameradata) {
    return true;
 }
 
+bool ScenefileReader::parseTemplateGroups(const QJsonValue &templateGroups) {
+    if (!templateGroups.isArray()) {
+        std::cout << "templateGroups must be an array" << std::endl;
+        return false;
+    }
+
+    QJsonArray templateGroupsArray = templateGroups.toArray();
+    for (auto templateGroup: templateGroupsArray) {
+        parseTemplateGroupData(templateGroup.toObject());
+    }
+
+    return true;
+}
+
+bool ScenefileReader::parseTemplateGroupData(const QJsonObject &templateGroup) {
+    QStringList requiredFields = { "name" };
+    QStringList optionalFields = { "translate", "rotate", "scale", "matrix", "lights", "primitives", "groups" };
+    QStringList allFields = requiredFields + optionalFields;
+    for (auto& field: templateGroup.keys()) {
+        if (!allFields.contains(field)) {
+            std::cout << "unknown field \"" << field.toStdString() << "\" on templateGroup object" << std::endl;
+            return false;
+        }
+    }
+
+    for (auto& field : requiredFields) {
+        if (!templateGroup.contains(field)) {
+            std::cout << "missing required field \"" << field.toStdString() << "\" on templateGroup object" << std::endl;
+            return false;
+        }
+    }
+
+    if (!templateGroup["name"].isString()) {
+        std::cout << "templateGroup name must be a string" << std::endl;
+    }
+    if (m_templates.contains(templateGroup["name"].toString().toStdString())) {
+        std::cout << "templateGroups cannot have the same" << std::endl;
+    }
+
+    bool containsOptionalFields = false;
+    for (auto& field: templateGroup.keys()) {
+        if (optionalFields.contains(field)) {
+            containsOptionalFields = true;
+            break;
+        }
+    }
+    if (!containsOptionalFields) {
+        return true;
+    }
+
+
+    SceneNode *templateNode = new SceneNode;
+    m_nodes.push_back(templateNode);
+    return parseGroupData(templateGroup, templateNode);
+}
+
 /**
 * Parse a group object and create a new CS123SceneNode in m_nodes.
 */
-bool ScenefileReader::parseGroupData(const QJsonObject &object) {
-   QStringList optionalFields = {"name", "translate", "rotate", "scale", "matrix", "lights", "primitives", "children"};
+bool ScenefileReader::parseGroupData(const QJsonObject &object, SceneNode* node) {
+   QStringList optionalFields = {"name", "translate", "rotate", "scale", "matrix", "lights", "primitives", "groups"};
    QStringList allFields = optionalFields;
-   for (auto field : object.keys()) {
+   for (auto& field : object.keys()) {
       if (!allFields.contains(field)) {
          std::cout << "unknown field \"" << field.toStdString() << "\" on group object" << std::endl;
          return false;
       }
    }
-   
-   SceneNode *node = new SceneNode;
-   m_nodes.push_back(node);
 
-   if (!object.hasAttribute("name")) {
-       PARSE_ERROR(object);
-       return false;
+   if (object.contains("translate")) {
+       if (!object["translate"].isArray()) {
+           std::cout << "group translate must be of type array" << std::endl;
+       }
+
+       QJsonArray translateArray = object["translate"].toArray();
+       if (translateArray.size() != 3) {
+           std::cout << "group translate must have 3 elements" << std::endl;
+           return false;
+       }
+       if (!translateArray[0].isDouble() || !translateArray[1].isDouble() || !translateArray[2].isDouble()) {
+           std::cout << "group translate must contain floating-point values" << std::endl;
+           return false;
+       }
+
+       SceneTransformation *translation = new SceneTransformation();
+       translation->type = TransformationType::TRANSFORMATION_TRANSLATE;
+       translation->translate.x = translateArray[0].toDouble();
+       translation->translate.y = translateArray[1].toDouble();
+       translation->translate.z = translateArray[2].toDouble();
+
+       node->transformations.push_back(translation);
    }
 
-   if (object.attribute("type") != "tree") {
-       std::cout << "top-level <object> elements must be of type tree" << std::endl;
-       return false;
+   if (object.contains("rotate")) {
+       if (!object["rotate"].isArray()) {
+           std::cout << "group rotate must be of type array" << std::endl;
+       }
+
+       QJsonArray rotateArray = object["rotate"].toArray();
+       if (rotateArray.size() != 3) { // NOTE: the old version was axis-angle, now maybe axis, axis, axis?
+           std::cout << "group rotate must have 3 elements" << std::endl;
+           return false;
+       }
+       if (!rotateArray[0].isDouble() || !rotateArray[1].isDouble() || !rotateArray[2].isDouble()) {
+           std::cout << "group rotate must contain floating-point values" << std::endl;
+           return false;
+       }
+
+       SceneTransformation *rotation = new SceneTransformation();
+       rotation->type = TransformationType::TRANSFORMATION_TRANSLATE;
+       rotation->rotate.x = rotateArray[0].toDouble();
+       rotation->rotate.y = rotateArray[1].toDouble();
+       rotation->rotate.z = rotateArray[2].toDouble();
+
+       // rotation->rotate.angle = rotateArray[3].toDouble();
+
+       node->transformations.push_back(rotation);
+   }
+
+   if (object.contains("scale")) {
+       if (!object["scale"].isArray()) {
+           std::cout << "group scale must be of type array" << std::endl;
+       }
+
+       QJsonArray scaleArray = object["scale"].toArray();
+       if (scaleArray.size() != 3) {
+           std::cout << "group scale must have 3 elements" << std::endl;
+           return false;
+       }
+       if (!scaleArray[0].isDouble() || !scaleArray[1].isDouble() || !scaleArray[2].isDouble()) {
+           std::cout << "group scale must contain floating-point values" << std::endl;
+           return false;
+       }
+
+       SceneTransformation *scale = new SceneTransformation();
+       scale->type = TransformationType::TRANSFORMATION_TRANSLATE;
+       scale->scale.x = scaleArray[0].toDouble();
+       scale->scale.y = scaleArray[1].toDouble();
+       scale->scale.z = scaleArray[2].toDouble();
+
+       node->transformations.push_back(scale);
+   }
+
+   if (object.contains("matrix")) {
+       if (!object["matrix"].isArray()) {
+           std::cout << "group matrix must be of type array of array" << std::endl;
+           return false;
+       }
+
+       QJsonArray matrixArray = object["matrix"].toArray();
+       if (matrixArray.size() != 4) {
+           std::cout << "group matrix must be 4x4" << std::endl;
+       }
+
+       SceneTransformation *matrixTransformation= new SceneTransformation();
+       matrixTransformation->type = TransformationType::TRANSFORMATION_MATRIX;
+
+       float* matrixPtr = glm::value_ptr(matrixTransformation->matrix);
+       int rowIndex = 0;
+       for (auto row: matrixArray) {
+           if (!row.isArray()) {
+               std::cout << "group matrix must be of type array of array" << std::endl;
+               return false;
+           }
+
+           QJsonArray rowArray = row.toArray();
+           if (rowArray.size() != 4) {
+              std::cout << "group matrix must be 4x4" << std::endl;
+           }
+
+           int colIndex = 0;
+           for (auto val: rowArray) {
+               if (!val.isDouble()) {
+                   std::cout << "group matrix must contain all floating-point values" << std::endl;
+                   return false;
+               }
+
+               // fill in column-wise
+               matrixPtr[colIndex * 4 + rowIndex] = (float) val.toDouble();
+               colIndex++;
+           }
+           rowIndex++;
+       }
+
+       node->transformations.push_back(matrixTransformation);
    }
 
    std::string name = object.attribute("name").toStdString();
 
    // Check that this object does not exist
-   if (m_objects[name]) {
+   if (m_templates[name]) {
        std::cout << ERROR_AT(object) << "two objects with the same name: " << name << std::endl;
        return false;
    }
@@ -650,7 +806,7 @@ bool ScenefileReader::parseGroupData(const QJsonObject &object) {
    // Create the object and add to the map
    SceneNode *node = new SceneNode;
    m_nodes.push_back(node);
-   m_objects[name] = node;
+   m_templates[name] = node;
 
    // Iterate over child elements
    QDomNode childNode = object.firstChild();
@@ -736,11 +892,11 @@ bool ScenefileReader::parseTransBlock(const QDomElement &transblock, SceneNode* 
        } else if (e.tagName() == "object") {
            if (e.attribute("type") == "master") {
                std::string masterName = e.attribute("name").toStdString();
-               if (!m_objects[masterName]) {
+               if (!m_templates[masterName]) {
                    std::cout << ERROR_AT(e) << "invalid master object reference: " << masterName << std::endl;
                    return false;
                }
-               node->children.push_back(m_objects[masterName]);
+               node->children.push_back(m_templates[masterName]);
            } else if (e.attribute("type") == "tree") {
                QDomNode subNode = e.firstChild();
                while (!subNode.isNull()) {
