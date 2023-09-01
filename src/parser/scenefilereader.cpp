@@ -617,7 +617,7 @@ bool ScenefileReader::parseGroupData(const QJsonObject &object, SceneNode* node)
        }
 
        SceneTransformation *rotation = new SceneTransformation();
-       rotation->type = TransformationType::TRANSFORMATION_TRANSLATE;
+       rotation->type = TransformationType::TRANSFORMATION_ROTATE;
        rotation->rotate.x = rotateArray[0].toDouble();
        rotation->rotate.y = rotateArray[1].toDouble();
        rotation->rotate.z = rotateArray[2].toDouble();
@@ -644,7 +644,7 @@ bool ScenefileReader::parseGroupData(const QJsonObject &object, SceneNode* node)
        }
 
        SceneTransformation *scale = new SceneTransformation();
-       scale->type = TransformationType::TRANSFORMATION_TRANSLATE;
+       scale->type = TransformationType::TRANSFORMATION_SCALE;
        scale->scale.x = scaleArray[0].toDouble();
        scale->scale.y = scaleArray[1].toDouble();
        scale->scale.z = scaleArray[2].toDouble();
