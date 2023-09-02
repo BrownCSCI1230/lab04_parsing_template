@@ -1,0 +1,121 @@
+{
+  "name": "root",
+  "globalData": {
+    "ambientCoeff": 0.5,
+    "diffuseCoeff": 0.7,
+    "specularCoeff": 0.54,
+    "transparentCoeff": 1
+  },
+  "cameraData": {
+    "position": [
+      10.0,
+      4.1,
+      16.0
+    ],
+    "up": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "look": [
+      -9.0,
+      -3.2,
+      -16.0
+    ],
+    "heightAngle": 49.5
+  },
+  "groups": [
+    {
+      "lights": [
+        {
+          "type": "point",
+          "color": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "attenuationCoeff": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "lights": [
+        {
+          "type": "directional",
+          "color": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "direction": [
+            0.25,
+            1.0,
+            -1.0
+          ]
+        }
+      ]
+    },
+    {
+      "lights": [
+        {
+          "type": "directional",
+          "color": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "direction": [
+            1.0,
+            -1.8,
+            -2.0
+          ]
+        }
+      ]
+    },
+    {
+      "groups": [
+        {
+          "translate": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            0.75,
+            0.75,
+            0.75
+          ],
+          "primitives": [
+            {
+              "type": "sphere",
+              "diffuse": [
+                1.0,
+                0.75,
+                0.75
+              ],
+              "specular": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "shininess": 25.0,
+              "reflective": [
+                1.0,
+                0.75,
+                0.75
+              ],
+              "blend": 0.75,
+              "textureFile": "/Users/jerry/Desktop/Ray/data/image/marsTexture.png",
+              "textureU": 1.0,
+              "textureV": 1.0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
