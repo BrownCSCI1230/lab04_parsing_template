@@ -55,5 +55,6 @@ bool SceneParser::parse(std::string filepath, RenderData &renderData) {
     // Task 6: populate renderData's list of primitives and their transforms.
     //         This will involve traversing the scene graph, and we recommend you
     //         create a helper function to do so!
+
     return true;
 }
