@@ -4,6 +4,9 @@
 #include <QApplication>
 #include <QScreen>
 
+#include "parser/sceneparser.h"
+
+
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
@@ -14,8 +17,10 @@ int main(int argc, char *argv[])
     fmt.setProfile(QSurfaceFormat::CoreProfile);
     QSurfaceFormat::setDefaultFormat(fmt);
 
-
     MainWindow w;
     w.show();
+
+    SceneParser::debugDFS();
+
     return a.exec();
 }
