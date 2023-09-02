@@ -12,7 +12,7 @@ struct Word {
 };
 
 void dfsPrintTree(Word* w, std::string sentence) {
-    // Task 4: Debug this function!!! (Hint: you may need to write/add some code...)
+    // Task 4: Debug this function!!! (Hint: you may need to write/add some logic...)
     std::string newSentence = w->word + sentence;
     if (w->left == nullptr && w->right == nullptr) {
         std::cout << newSentence << std::endl;
