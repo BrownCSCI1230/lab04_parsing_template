@@ -25,7 +25,7 @@ void MainWindow::fileOpen() {
         return;
     }
 
-    if (!file.endsWith(".xml")) {
+    if (!file.endsWith(".json")) {
         QMessageBox::warning(this, "Error", "Unsupported file format");
         return;
     }
@@ -33,7 +33,7 @@ void MainWindow::fileOpen() {
     RenderData renderData;
     bool success = SceneParser::parse(file.toStdString(), renderData);
     if (!success) {
-        QMessageBox::critical(this, "Error", "Parse XML fail");
+        QMessageBox::critical(this, "Error", "Parse JSON fail");
         return;
     }
 
