@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 # Sets project name
-project(lab05 LANGUAGES CXX)
+project(lab04 LANGUAGES CXX)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
